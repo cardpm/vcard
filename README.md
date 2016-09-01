@@ -41,6 +41,7 @@ $vcard->addName($lastname, $firstname, $additional, $prefix, $suffix);
 // add work data
 $vcard->addCompany('Siesqo');
 $vcard->addJobtitle('Web Developer');
+$vcard->addRole('Data Protection Officer');
 $vcard->addEmail('info@jeroendesloovere.be');
 $vcard->addPhoneNumber(1234121212, 'PREF;WORK');
 $vcard->addPhoneNumber(123456789, 'WORK');
@@ -57,6 +58,22 @@ return $vcard->download();
 ```
 
 > [View all examples](/examples/example.php) or check [the VCard class](/src/VCard.php).
+
+### Parsing examples
+
+The parser can either get passed a VCard string, like so:
+
+```php
+$parser = new VCardParser($vcardString);
+echo $parser->getCardAtIndex(0)->fullname; // Prints the full name.
+```
+
+Or by using a factory method with a file name:
+
+```php
+$parser = VCardParser::parseFromFile('path/to/file.vcf');
+echo $parser->getCardAtIndex(0)->fullname; // Prints the full name.
+```
 
 **Support for frameworks**
 

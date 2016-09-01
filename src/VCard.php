@@ -89,7 +89,7 @@ class VCard
         // set property
         $this->setProperty(
             'address',
-            'ADR' . (($type != '') ? ';' . $type : ''),
+            'ADR' . (($type != '') ? ';' . $type : '') . $this->getCharsetString(),
             $value
         );
 
@@ -123,7 +123,7 @@ class VCard
     {
         $this->setProperty(
             'company',
-            'ORG',
+            'ORG' . $this->getCharsetString(),
             $company
         );
 
@@ -165,8 +165,25 @@ class VCard
     {
         $this->setProperty(
             'jobtitle',
-            'TITLE',
+            'TITLE' . $this->getCharsetString(),
             $jobtitle
+        );
+
+        return $this;
+    }
+
+    /**
+     * Add role
+     *
+     * @param  string $role The role for the person.
+     * @return $this
+     */
+    public function addRole($role)
+    {
+        $this->setProperty(
+            'role',
+            'ROLE' . $this->getCharsetString(),
+            $role
         );
 
         return $this;
@@ -203,7 +220,32 @@ class VCard
 
             $property .= ";ENCODING=b;TYPE=" . $type;
         } else {
-            $value = $url;
+            if (filter_var($url, FILTER_VALIDATE_URL) !== FALSE) {
+                $propertySuffix = ';VALUE=URL';
+
+                $headers = get_headers($url);
+
+                $imageTypeMatched = false;
+                $fileType = null;
+
+                foreach ($headers as $header) {
+                    if (preg_match('/Content-Type:\simage\/([a-z]+)/i', $header, $m)) {
+                        $fileType = $m[1];
+                        $imageTypeMatched = true;
+                    }
+                }
+
+                if (!$imageTypeMatched) {
+                    throw new VCardMediaException('Returned data isn\'t an image.');
+                }
+
+                $propertySuffix .= ';TYPE=' . strtoupper($fileType);
+
+                $property = $property . $propertySuffix;
+                $value = $url;
+            } else {
+                $value = $url;
+            }
         }
 
         $this->setProperty(
@@ -246,7 +288,7 @@ class VCard
         $property = $lastName . ';' . $firstName . ';' . $additional . ';' . $prefix . ';' . $suffix;
         $this->setProperty(
             'name',
-            'N',
+            'N' . $this->getCharsetString(),
             $property
         );
 
@@ -255,7 +297,7 @@ class VCard
             // set property
             $this->setProperty(
                 'fullname',
-                'FN',
+                'FN' . $this->getCharsetString(),
                 trim(implode(' ', $values))
             );
         }
@@ -273,7 +315,7 @@ class VCard
     {
         $this->setProperty(
             'note',
-            'NOTE',
+            'NOTE' . $this->getCharsetString(),
             $note
         );
 
@@ -296,6 +338,25 @@ class VCard
             'phoneNumber',
             'TEL' . (($type != '') ? ';' . $type : ''),
             $number
+        );
+
+        return $this;
+    }
+
+    /**
+     * Add Logo
+     *
+     * @param  string $url     image url or filename
+     * @param  bool   $include Include the image in our vcard?
+     * @return $this
+     */
+    public function addLogo($url, $include = true)
+    {
+        $this->addMedia(
+            'LOGO',
+            $url,
+            $include,
+            'logo'
         );
 
         return $this;
@@ -354,7 +415,7 @@ class VCard
         $properties = $this->getProperties();
         foreach ($properties as $property) {
             // add to string
-            $string .= $this->fold($property['key'] . ':' . $property['value'] . "\r\n");
+            $string .= $this->fold($property['key'] . ':' . $this->escape($property['value']) . "\r\n");
         }
 
         // add to string
@@ -465,6 +526,21 @@ class VCard
         // split, wrap and trim trailing separator
         return substr(chunk_split($text, 73, "\r\n "), 0, -3);
     }
+    
+    /**
+     * Escape newline characters according to RFC2425 section 5.8.4.
+     *
+     * @link http://tools.ietf.org/html/rfc2425#section-5.8.4
+     * @param  string $text
+     * @return string
+     */
+    protected function escape($text)
+    {
+        $text = str_replace("\r\n", "\\n", $text);
+        $text = str_replace("\n", "\\n", $text);
+        
+        return $text;
+    }
 
     /**
      * Get output as string
@@ -485,6 +561,20 @@ class VCard
     public function getCharset()
     {
         return $this->charset;
+    }
+
+    /**
+     * Get charset string
+     *
+     * @return string
+     */
+    public function getCharsetString()
+    {
+        $charsetString = '';
+        if ($this->charset == 'utf-8') {
+            $charsetString = ';CHARSET=' . $this->charset;
+        }
+        return $charsetString;
     }
 
     /**
@@ -558,8 +648,10 @@ class VCard
      */
     public function getOutput()
     {
-        return ($this->isIOS7()) ?
+        $output = ($this->isIOS7()) ?
             $this->buildVCalendar() : $this->buildVCard();
+
+        return $output;
     }
 
     /**

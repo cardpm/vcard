@@ -48,6 +48,9 @@ class VCardTest extends \PHPUnit_Framework_TestCase
      */
     public function setUp()
     {
+        // set timezone
+        date_default_timezone_set('Europe/Brussels');
+
         $this->vcard = new VCard();
 
         $this->firstName = 'Jeroen';
@@ -101,6 +104,11 @@ class VCardTest extends \PHPUnit_Framework_TestCase
         $this->assertEquals($this->vcard, $this->vcard->addJobtitle(''));
     }
 
+    public function testAddRole()
+    {
+        $this->assertEquals($this->vcard, $this->vcard->addRole(''));
+    }
+
     public function testAddName()
     {
         $this->assertEquals($this->vcard, $this->vcard->addName(''));
@@ -125,6 +133,20 @@ class VCardTest extends \PHPUnit_Framework_TestCase
         $this->assertEquals($this->vcard, $return);
     }
 
+    public function testAddLogoWithJpgImage()
+    {
+        $return = $this->vcard->addLogo(__DIR__ . '/image.jpg', true);
+
+        $this->assertEquals($this->vcard, $return);
+    }
+
+    public function testAddLogoWithJpgImageNoInclude()
+    {
+        $return = $this->vcard->addLogo(__DIR__ . '/image.jpg', false);
+
+        $this->assertEquals($this->vcard, $return);
+    }
+
     public function testAddUrl()
     {
         $this->assertEquals($this->vcard, $this->vcard->addUrl('1'));
@@ -136,11 +158,22 @@ class VCardTest extends \PHPUnit_Framework_TestCase
      * Test adding photo with no value
      *
      * @expectedException JeroenDesloovere\VCard\VCardMediaException
-     * @t@github.com:jeroendesloovere/vcard.gitexpectedExceptionMessage Nothing returned from URL.
+     * @expectedExceptionMessage Nothing returned from URL.
      */
     public function testAddPhotoWithNoValue()
     {
         $this->vcard->addPhoto(__DIR__ . '/emptyfile', true);
+    }
+
+    /**
+     * Test adding logo with no value
+     *
+     * @expectedException JeroenDesloovere\VCard\VCardMediaException
+     * @t@github.com:jeroendesloovere/vcard.gitexpectedExceptionMessage Nothing returned from URL.
+     */
+    public function testAddLogoWithNoValue()
+    {
+        $this->vcard->addLogo(__DIR__ . '/emptyfile', true);
     }
 
     /**
@@ -152,6 +185,17 @@ class VCardTest extends \PHPUnit_Framework_TestCase
     public function testAddPhotoWithNoPhoto()
     {
         $this->vcard->addPhoto(__DIR__ . '/wrongfile', true);
+    }
+
+    /**
+     * Test adding logo with no image
+     *
+     * @expectedException JeroenDesloovere\VCard\VCardMediaException
+     * @expectedExceptionMessage Returned data aren't an image.
+     */
+    public function testAddLogoWithNoImage()
+    {
+        $this->vcard->addLogo(__DIR__ . '/wrongfile', true);
     }
 
     /**
@@ -248,6 +292,17 @@ class VCardTest extends \PHPUnit_Framework_TestCase
     {
         $this->assertEquals($this->vcard, $this->vcard->addJobtitle('1'));
         $this->assertEquals($this->vcard, $this->vcard->addJobtitle('2'));
+    }
+
+    /**
+     * Test multiple roles
+     *
+     * @expectedException JeroenDesloovere\VCard\Exception
+     */
+    public function testMultipleRoles()
+    {
+        $this->assertEquals($this->vcard, $this->vcard->addRole('1'));
+        $this->assertEquals($this->vcard, $this->vcard->addRole('2'));
     }
 
     /**
