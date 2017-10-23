@@ -13,8 +13,6 @@ use Behat\Transliterator\Transliterator;
 
 /**
  * VCard PHP Class to generate .vcard files and save them to a file or output as a download.
- *
- * @author Jeroen Desloovere <info@jeroendesloovere.be>
  */
 class VCard
 {
@@ -44,12 +42,12 @@ class VCard
      *
      * @var array
      */
-    private $multiplePropertiesForElementAllowed = array(
+    private $multiplePropertiesForElementAllowed = [
         'email',
         'address',
         'phoneNumber',
         'url'
-    );
+    ];
 
     /**
      * Properties
@@ -123,7 +121,8 @@ class VCard
     /**
      * Add company
      *
-     * @param  string $company
+     * @param string $company
+     * @param string $department
      * @return $this
      */
     public function addCompany($company, $department = '')
@@ -200,50 +199,46 @@ class VCard
     /**
      * Add a photo or logo (depending on property name)
      *
-     * @param  string $property LOGO|PHOTO
-     * @param  string $url image url or filename
-     * @param  bool $include Do we include the image in our vcard or not?
-     * @throws VCardMediaException if file is empty or not an image file
+     * @param string $property LOGO|PHOTO
+     * @param string $url image url or filename
+     * @param bool $include Do we include the image in our vcard or not?
+     * @param string $element The name of the element to set
      */
     private function addMedia($property, $url, $include = true, $element)
     {
+        $mimeType = null;
+
+        //Is this URL for a remote resource?
+        if (filter_var($url, FILTER_VALIDATE_URL) !== false) {
+            $headers = get_headers($url, 1);
+
+            if (array_key_exists('Content-Type', $headers)) {
+                $mimeType = $headers['Content-Type'];
+            }
+        } else {
+            //Local file, so inspect it directly
+            $mimeType = mime_content_type($url);
+        }
+        if (strpos($mimeType, ';') !== false) {
+            $mimeType = strstr($mimeType, ';', true);
+        }
+        if (!is_string($mimeType) || substr($mimeType, 0, 6) !== 'image/') {
+            throw VCardException::invalidImage();
+        }
+        $fileType = strtoupper(substr($mimeType, 6));
+
         if ($include) {
             $value = file_get_contents($url);
 
             if (!$value) {
-                throw new VCardMediaException('Nothing returned from URL.');
+                throw VCardException::emptyURL();
             }
 
             $value = base64_encode($value);
-            $mimetype = mime_content_type($url);
-
-            if (preg_match('/^image\//', $mimetype) !== 1) {
-                throw new VCardMediaException('Returned data aren\'t an image.');
-            }
-
-            $type = strtoupper(str_replace('image/', '', $mimetype));
-
-            $property .= ";ENCODING=b;TYPE=" . $type;
+            $property .= ";ENCODING=b;TYPE=" . $fileType;
         } else {
             if (filter_var($url, FILTER_VALIDATE_URL) !== false) {
                 $propertySuffix = ';VALUE=URL';
-
-                $headers = get_headers($url);
-
-                $imageTypeMatched = false;
-                $fileType = null;
-
-                foreach ($headers as $header) {
-                    if (preg_match('/Content-Type:\simage\/([a-z]+)/i', $header, $m)) {
-                        $fileType = $m[1];
-                        $imageTypeMatched = true;
-                    }
-                }
-
-                if (!$imageTypeMatched) {
-                    throw new VCardMediaException('Returned data isn\'t an image.');
-                }
-
                 $propertySuffix .= ';TYPE=' . strtoupper($fileType);
 
                 $property = $property . $propertySuffix;
@@ -278,13 +273,13 @@ class VCard
         $suffix = ''
     ) {
         // define values with non-empty values
-        $values = array_filter(array(
+        $values = array_filter([
             $prefix,
             $firstName,
             $additional,
             $lastName,
             $suffix,
-        ));
+        ]);
 
         // define filename
         $this->setFilename($values);
@@ -650,20 +645,20 @@ class VCard
         $connection = 'close';
 
         if ((bool)$asAssociative) {
-            return array(
+            return [
                 'Content-type' => $contentType,
                 'Content-Disposition' => $contentDisposition,
                 'Content-Length' => $contentLength,
                 'Connection' => $connection,
-            );
+            ];
         }
 
-        return array(
+        return [
             'Content-type: ' . $contentType,
             'Content-Disposition: ' . $contentDisposition,
             'Content-Length: ' . $contentLength,
             'Connection: ' . $connection,
-        );
+        ];
     }
 
     /**
@@ -805,12 +800,12 @@ class VCard
      * Set the save path directory
      *
      * @param  string $savePath Save Path
-     * @throws Exception
+     * @throws VCardException
      */
     public function setSavePath($savePath)
     {
         if (!is_dir($savePath)) {
-            throw new Exception('Output directory does not exist.');
+            throw VCardException::outputDirectoryNotExists();
         }
 
         // Add trailing directory separator the save path
@@ -827,24 +822,24 @@ class VCard
      * @param  string $element The element name you want to set, f.e.: name, email, phoneNumber, ...
      * @param  string $key
      * @param  string $value
-     * @throws Exception
+     * @throws VCardException
      */
     private function setProperty($element, $key, $value)
     {
         if (!in_array($element, $this->multiplePropertiesForElementAllowed)
             && isset($this->definedElements[$element])
         ) {
-            throw new Exception('You can only set "' . $element . '" once.');
+            throw VCardException::elementAlreadyExists($element);
         }
 
         // we define that we set this element
         $this->definedElements[$element] = true;
 
         // adding property
-        $this->properties[] = array(
+        $this->properties[] = [
             'key' => $key,
             'value' => $value
-        );
+        ];
     }
 
     /**
@@ -856,7 +851,7 @@ class VCard
     {
         $browser = $this->getUserAgent();
 
-        $matches = array();
+        $matches = [];
         preg_match('/os (\d+)_(\d+)\s+/', $browser, $matches);
         $version = isset($matches[1]) ? ((int)$matches[1]) : 999;
 
